@@ -5,6 +5,11 @@ async function getUpcomingPublishedEvents() {
   return events;
 }
 
+async function getEventById(id) {
+  return eventModel.findById(id);
+}
+
 module.exports = {
   getUpcomingPublishedEvents,
+  getEventById,
 };

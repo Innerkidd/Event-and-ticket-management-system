@@ -41,6 +41,66 @@ const ADD_GOOGLE_ID_COLUMN = `
     ADD COLUMN IF NOT EXISTS google_id VARCHAR(255) UNIQUE;
 `;
 
+const ADD_EVENTS_ORGANIZER_ID_COLUMN = `
+  ALTER TABLE events
+    ADD COLUMN IF NOT EXISTS organizer_id INTEGER REFERENCES users(id);
+`;
+
+const CREATE_ORGANIZER_APPLICATIONS_TABLE = `
+  CREATE TABLE IF NOT EXISTS organizer_applications (
+    id              SERIAL PRIMARY KEY,
+    user_id         INTEGER        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    full_name       VARCHAR(255)   NOT NULL,
+    email           VARCHAR(255)   NOT NULL,
+    phone           VARCHAR(50),
+    organization    VARCHAR(255),
+    experience      TEXT,
+    reason          TEXT,
+    linkedin_url    VARCHAR(500),
+    social_media_url VARCHAR(500),
+    portfolio_url   VARCHAR(500),
+    document_url    VARCHAR(500),
+    status          VARCHAR(20)    NOT NULL DEFAULT 'PENDING'
+                    CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
+    admin_remarks   TEXT,
+    created_at      TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ    NOT NULL DEFAULT NOW()
+  );
+`;
+
+const CREATE_BOOKINGS_TABLE = `
+  CREATE TABLE IF NOT EXISTS bookings (
+    id           SERIAL PRIMARY KEY,
+    user_id      INTEGER        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    event_id     INTEGER        NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    quantity     INTEGER        NOT NULL DEFAULT 1,
+    unit_price   NUMERIC(10, 2) NOT NULL DEFAULT 0,
+    total_amount NUMERIC(10, 2) NOT NULL DEFAULT 0,
+    status       VARCHAR(20)    NOT NULL DEFAULT 'PENDING'
+                 CHECK (status IN ('PENDING', 'CONFIRMED', 'CANCELLED')),
+    created_at   TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
+    updated_at   TIMESTAMPTZ    NOT NULL DEFAULT NOW()
+  );
+`;
+
+const CREATE_PAYMENTS_TABLE = `
+  CREATE TABLE IF NOT EXISTS payments (
+    id                  SERIAL PRIMARY KEY,
+    booking_id          INTEGER        NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
+    razorpay_order_id   VARCHAR(255),
+    razorpay_payment_id VARCHAR(255),
+    razorpay_signature  VARCHAR(500),
+    amount              NUMERIC(10, 2) NOT NULL DEFAULT 0,
+    status              VARCHAR(20)    NOT NULL DEFAULT 'PENDING'
+                        CHECK (status IN ('PENDING', 'SUCCESS', 'FAILED', 'REFUNDED')),
+    method              VARCHAR(20)    NOT NULL DEFAULT 'OTHER'
+                        CHECK (method IN ('CARD', 'UPI', 'NETBANKING', 'OTHER')),
+    created_at          TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
+    paid_at             TIMESTAMPTZ
+  );
+`;
+
 const SEED_EVENTS = [
   {
     name: 'AI Workshop',
@@ -160,6 +220,18 @@ async function init() {
 
     await pool.query(ADD_GOOGLE_ID_COLUMN);
     console.log('Column "users.google_id" is ready.');
+
+    await pool.query(ADD_EVENTS_ORGANIZER_ID_COLUMN);
+    console.log('Column "events.organizer_id" is ready.');
+
+    await pool.query(CREATE_ORGANIZER_APPLICATIONS_TABLE);
+    console.log('Table "organizer_applications" is ready.');
+
+    await pool.query(CREATE_BOOKINGS_TABLE);
+    console.log('Table "bookings" is ready.');
+
+    await pool.query(CREATE_PAYMENTS_TABLE);
+    console.log('Table "payments" is ready.');
 
     for (const user of SEED_USERS) {
       const exists = await pool.query('SELECT 1 FROM users WHERE email = $1', [user.email]);

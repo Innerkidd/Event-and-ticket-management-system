@@ -1,11 +1,3 @@
-// Event Management & Ticketing System — Database Schema Blueprint
-//
-// NOTE: This file is a BLUEPRINT only.
-// The running backend uses `pg` (node-postgres) and must keep using it.
-// No migrations are run against the database from this file.
-// Column names are mapped with @map() to match the existing PostgreSQL tables
-// (users, events) used by the working backend.
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -15,227 +7,89 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ─────────────────────────────── ENUMS ───────────────────────────────
-
-enum UserRole {
-  ADMIN
-  ORGANIZER
-  ATTENDEE
-}
-
-enum OrganizerApplicationStatus {
-  PENDING
-  APPROVED
-  REJECTED
-}
-
-enum EventStatus {
-  DRAFT
-  PUBLISHED
-  CANCELLED
-  COMPLETED
-}
-
-enum BookingStatus {
-  PENDING
-  CONFIRMED
-  CANCELLED
-}
-
-enum PaymentStatus {
-  PENDING
-  SUCCESS
-  FAILED
-  REFUNDED
-}
-
-enum PaymentMethod {
-  CARD
-  UPI
-  CASH
-  OTHER
-}
-
-enum StaffRole {
-  REGISTRATION
-  SECURITY
-  COORDINATOR
-  CHECK_IN
-  OTHER
-}
-
-enum StaffStatus {
-  ACTIVE
-  INACTIVE
-}
-
-enum AttendanceStatus {
-  CHECKED_IN
-  NOT_CHECKED_IN
-}
-
-// ─────────────────────────────── MODELS ───────────────────────────────
-
-model User {
-  id                   Int                    @id @default(autoincrement())
-  name                 String                 @db.VarChar(255)
-  email                String                 @unique @db.VarChar(255)
-  passwordHash         String                 @map("password_hash")
-  role                 UserRole               @default(ATTENDEE) @db.VarChar(20)
-  googleId             String?                @unique @map("google_id") @db.VarChar(255)
-  createdAt            DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt            DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  organizerApplications OrganizerApplication[]
-  organizedEvents      Event[]
-  bookings             Booking[]
-  staffAssignments     Staff[]
-  checkInsPerformed    Attendance[]           @relation("AttendanceCheckedInBy")
-
-  @@map("users")
-}
-
-model OrganizerApplication {
-  id               Int                      @id @default(autoincrement())
-  userId           Int                      @map("user_id")
-  fullName         String                   @db.VarChar(255)
-  email            String                   @db.VarChar(255)
-  phone            String?                  @db.VarChar(50)
-  organization     String?                  @db.VarChar(255)
-  organizationType String?                  @map("organization_type") @db.VarChar(100)
-  experience       String?                  @db.Text
-  reason           String?                  @db.Text
-  linkedinUrl      String?                  @map("linkedin_url") @db.VarChar(500)
-  socialMediaUrl   String?                  @map("social_media_url") @db.VarChar(500)
-  portfolioUrl     String?                  @map("portfolio_url") @db.VarChar(500)
-  documentUrl      String?                  @map("document_url") @db.VarChar(500)
-  status           OrganizerApplicationStatus @default(PENDING) @db.VarChar(20)
-  adminRemarks     String?                  @map("admin_remarks") @db.Text
-  createdAt        DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime                 @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([status])
-  @@map("organizer_applications")
-}
-
-model Event {
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model bookings {
   id           Int        @id @default(autoincrement())
-  organizerId  Int        @map("organizer_id")
-  name         String     @db.VarChar(255)
-  description  String?    @db.Text
-  startDate    DateTime   @map("start_date")
-  endDate      DateTime?  @map("end_date")
-  venue        String?    @db.VarChar(255)
-  image        String?    @db.VarChar(500)
-  ticketPrice  Decimal    @default(0) @map("ticket_price") @db.Decimal(10, 2)
-  totalTickets Int        @default(0) @map("total_tickets")
-  status       EventStatus @default(DRAFT) @db.VarChar(20)
-  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  organizer User    @relation("OrganizedEvents", fields: [organizerId], references: [id])
-  tickets   Ticket[]
-  bookings  Booking[]
-  staff     Staff[]
-  attendance Attendance[]
-
-  @@index([organizerId])
-  @@index([status])
-  @@index([startDate])
-  @@map("events")
+  user_id      Int
+  event_id     Int
+  quantity     Int        @default(1)
+  unit_price   Decimal    @default(0) @db.Decimal(10, 2)
+  total_amount Decimal    @default(0) @db.Decimal(10, 2)
+  status       String     @default("PENDING") @db.VarChar(20)
+  created_at   DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime   @default(now()) @db.Timestamptz(6)
+  events       events     @relation(fields: [event_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users        users      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  payments     payments[]
 }
 
-model Ticket {
-  id        Int      @id @default(autoincrement())
-  eventId   Int      @map("event_id")
-  name      String   @db.VarChar(100)
-  price     Decimal  @default(0) @db.Decimal(10, 2)
-  quantity  Int      @default(0)
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  event    Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  bookings Booking[]
-
-  @@index([eventId])
-  @@map("tickets")
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model events {
+  id            Int        @id @default(autoincrement())
+  name          String     @db.VarChar(255)
+  description   String?
+  start_date    DateTime   @db.Timestamp(6)
+  end_date      DateTime?  @db.Timestamp(6)
+  venue         String?    @db.VarChar(255)
+  image         String?    @db.VarChar(500)
+  ticket_price  Decimal    @default(0) @db.Decimal(10, 2)
+  total_tickets Int        @default(0)
+  status        String     @default("DRAFT") @db.VarChar(20)
+  created_at    DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime   @default(now()) @db.Timestamptz(6)
+  organizer_id  Int?
+  bookings      bookings[]
+  users         users?     @relation(fields: [organizer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
-model Booking {
-  id          Int          @id @default(autoincrement())
-  userId      Int          @map("user_id")
-  eventId     Int          @map("event_id")
-  ticketId    Int          @map("ticket_id")
-  quantity    Int          @default(1)
-  totalAmount Decimal      @map("total_amount") @db.Decimal(10, 2)
-  status      BookingStatus @default(PENDING) @db.VarChar(20)
-  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  user       User       @relation(fields: [userId], references: [id])
-  event      Event      @relation(fields: [eventId], references: [id])
-  ticket     Ticket     @relation(fields: [ticketId], references: [id])
-  payment    Payment?
-  attendance Attendance?
-
-  @@index([userId])
-  @@index([eventId])
-  @@index([status])
-  @@map("bookings")
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model organizer_applications {
+  id               Int      @id @default(autoincrement())
+  user_id          Int
+  full_name        String   @db.VarChar(255)
+  email            String   @db.VarChar(255)
+  phone            String?  @db.VarChar(50)
+  organization     String?  @db.VarChar(255)
+  experience       String?
+  reason           String?
+  linkedin_url     String?  @db.VarChar(500)
+  social_media_url String?  @db.VarChar(500)
+  portfolio_url    String?  @db.VarChar(500)
+  document_url     String?  @db.VarChar(500)
+  status           String   @default("PENDING") @db.VarChar(20)
+  admin_remarks    String?
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime @default(now()) @db.Timestamptz(6)
+  users            users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
-model Payment {
-  id          Int           @id @default(autoincrement())
-  bookingId   Int           @unique @map("booking_id")
-  amount      Decimal       @db.Decimal(10, 2)
-  method      PaymentMethod @db.VarChar(20)
-  status      PaymentStatus @default(PENDING) @db.VarChar(20)
-  transactionId String?      @map("transaction_id") @db.VarChar(255)
-  paidAt      DateTime?     @map("paid_at") @db.Timestamptz(6)
-  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-
-  @@index([status])
-  @@map("payments")
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model payments {
+  id                  Int       @id @default(autoincrement())
+  booking_id          Int
+  razorpay_order_id   String?   @db.VarChar(255)
+  razorpay_payment_id String?   @db.VarChar(255)
+  razorpay_signature  String?   @db.VarChar(500)
+  amount              Decimal   @default(0) @db.Decimal(10, 2)
+  status              String    @default("PENDING") @db.VarChar(20)
+  method              String    @default("OTHER") @db.VarChar(20)
+  created_at          DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime  @default(now()) @db.Timestamptz(6)
+  paid_at             DateTime? @db.Timestamptz(6)
+  bookings            bookings  @relation(fields: [booking_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
-model Staff {
-  id        Int        @id @default(autoincrement())
-  userId    Int        @map("user_id")
-  eventId   Int        @map("event_id")
-  role      StaffRole  @db.VarChar(20)
-  status    StaffStatus @default(ACTIVE) @db.VarChar(20)
-  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([eventId])
-  @@map("staff")
-}
-
-model Attendance {
-  id          Int              @id @default(autoincrement())
-  bookingId   Int              @unique @map("booking_id")
-  eventId     Int              @map("event_id")
-  checkedInBy Int?             @map("checked_in_by")
-  status      AttendanceStatus @default(NOT_CHECKED_IN) @db.VarChar(20)
-  checkedInAt DateTime?        @map("checked_in_at") @db.Timestamptz(6)
-  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  booking     Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  event       Event   @relation(fields: [eventId], references: [id])
-  checkedInBy User?   @relation("AttendanceCheckedInBy", fields: [checkedInBy], references: [id])
-
-  @@index([eventId])
-  @@index([checkedInBy])
-  @@map("attendance")
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model users {
+  id                     Int                      @id @default(autoincrement())
+  name                   String                   @db.VarChar(255)
+  email                  String                   @unique @db.VarChar(255)
+  password_hash          String
+  role                   String                   @default("ATTENDEE") @db.VarChar(20)
+  created_at             DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime                 @default(now()) @db.Timestamptz(6)
+  google_id              String?                  @unique @db.VarChar(255)
+  bookings               bookings[]
+  events                 events[]
+  organizer_applications organizer_applications[]
 }
