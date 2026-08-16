@@ -10,6 +10,11 @@ const authService = {
     const response = await api.post('/auth/register', { name, email, password });
     return response.data?.data;
   },
+
+  googleLogin: async (credential) => {
+    const response = await api.post('/auth/google', { credential });
+    return response.data?.data;
+  },
 };
 
 export default authService;

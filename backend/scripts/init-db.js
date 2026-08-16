@@ -30,9 +30,15 @@ const CREATE_USERS_TABLE = `
     password_hash TEXT           NOT NULL,
     role          VARCHAR(20)    NOT NULL DEFAULT 'ATTENDEE'
                   CHECK (role IN ('ADMIN', 'ORGANIZER', 'ATTENDEE')),
+    google_id     VARCHAR(255)   UNIQUE,
     created_at    TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
     updated_at    TIMESTAMPTZ    NOT NULL DEFAULT NOW()
   );
+`;
+
+const ADD_GOOGLE_ID_COLUMN = `
+  ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS google_id VARCHAR(255) UNIQUE;
 `;
 
 const SEED_EVENTS = [
@@ -151,6 +157,9 @@ async function init() {
 
     await pool.query(CREATE_USERS_TABLE);
     console.log('Table "users" is ready.');
+
+    await pool.query(ADD_GOOGLE_ID_COLUMN);
+    console.log('Column "users.google_id" is ready.');
 
     for (const user of SEED_USERS) {
       const exists = await pool.query('SELECT 1 FROM users WHERE email = $1', [user.email]);

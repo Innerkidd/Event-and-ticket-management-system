@@ -1,11 +1,15 @@
+const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const { OAuth2Client } = require('google-auth-library');
 
 const userModel = require('../models/user.model');
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const ROLE_ATTENDEE = 'ATTENDEE';
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 class AuthError extends Error {
   constructor(message, statusCode) {
@@ -49,6 +53,26 @@ async function register({ name, email, password }) {
   return user;
 }
 
+function generateToken(user) {
+  return jwt.sign(
+    { userId: user.id, role: user.role },
+    process.env.JWT_SECRET,
+    { expiresIn: '7d' }
+  );
+}
+
+function buildAuthResult(user) {
+  return {
+    token: generateToken(user),
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    },
+  };
+}
+
 async function login({ email, password }) {
   if (!email || !password) {
     throw new AuthError('Invalid email or password', 401);
@@ -64,25 +88,59 @@ async function login({ email, password }) {
     throw new AuthError('Invalid email or password', 401);
   }
 
-  const token = jwt.sign(
-    { userId: user.id, role: user.role },
-    process.env.JWT_SECRET,
-    { expiresIn: '7d' }
-  );
+  return buildAuthResult(user);
+}
 
-  return {
-    token,
-    user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-    },
-  };
+async function googleLogin({ credential }) {
+  if (!credential) {
+    throw new AuthError('Google authentication failed', 401);
+  }
+
+  let payload;
+  try {
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    payload = ticket.getPayload();
+  } catch (error) {
+    throw new AuthError('Google authentication failed', 401);
+  }
+
+  if (!payload || !payload.sub || !payload.email || !payload.email_verified) {
+    throw new AuthError('Google authentication failed', 401);
+  }
+
+  const googleId = payload.sub;
+  const email = payload.email.toLowerCase();
+  const name = payload.name || email.split('@')[0];
+
+  let user = await userModel.findByGoogleId(googleId);
+  if (user) {
+    return buildAuthResult(user);
+  }
+
+  user = await userModel.findByEmail(email);
+  if (user) {
+    user = await userModel.linkGoogleId(user.id, googleId);
+    return buildAuthResult(user);
+  }
+
+  const unusablePasswordHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
+  user = await userModel.create({
+    name,
+    email,
+    passwordHash: unusablePasswordHash,
+    role: ROLE_ATTENDEE,
+    googleId,
+  });
+
+  return buildAuthResult(user);
 }
 
 module.exports = {
   register,
   login,
+  googleLogin,
   AuthError,
 };

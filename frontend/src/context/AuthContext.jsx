@@ -58,6 +58,23 @@ export const AuthProvider = ({ children }) => {
     return data;
   };
 
+  const googleLogin = async (credential) => {
+    setLoading(true);
+    try {
+      const data = await authService.googleLogin(credential);
+      if (!data?.token || !data?.user) {
+        throw new Error('Invalid Google authentication response from server.');
+      }
+      setToken(data.token);
+      setUser(data.user);
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      return data;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -72,6 +89,7 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated: !!token && !!user,
     login,
     register,
+    googleLogin,
     logout,
   };
 

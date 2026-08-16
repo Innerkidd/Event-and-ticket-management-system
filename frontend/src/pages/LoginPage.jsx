@@ -1,8 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Mail, LogIn, AlertCircle, Info } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import PasswordInput from '../components/common/PasswordInput';
+
+const GOOGLE_CLIENT_ID =
+  import.meta.env.VITE_GOOGLE_CLIENT_ID ||
+  '696140172263-gpc7on1j38tq428dokrffka3cqi5ooua.apps.googleusercontent.com';
+
+const GSI_SCRIPT_URL = 'https://accounts.google.com/gsi/client';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -11,7 +17,7 @@ const LoginPage = () => {
   const [infoMessage, setInfoMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { login, isAuthenticated, user } = useAuth();
+  const { login, googleLogin, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -27,6 +33,19 @@ const LoginPage = () => {
       }
     }
   }, [isAuthenticated, user, navigate]);
+
+  const redirectByRole = (role, fallbackPath) => {
+    const from = location.state?.from?.pathname;
+    if (from) {
+      navigate(from, { replace: true });
+    } else if (role === 'ADMIN') {
+      navigate('/admin/dashboard', { replace: true });
+    } else if (role === 'ORGANIZER') {
+      navigate('/organizer/dashboard', { replace: true });
+    } else {
+      navigate(fallbackPath || '/attendee/dashboard', { replace: true });
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -54,19 +73,8 @@ const LoginPage = () => {
 
     try {
       const res = await login({ email: email.trim(), password });
-      const loggedInUser = res.user;
-
-      // Role-based redirection
-      const from = location.state?.from?.pathname;
-      if (from) {
-        navigate(from, { replace: true });
-      } else if (loggedInUser?.role === 'ADMIN') {
-        navigate('/admin/dashboard', { replace: true });
-      } else if (loggedInUser?.role === 'ORGANIZER') {
-        navigate('/organizer/dashboard', { replace: true });
-      } else {
-        navigate('/attendee/dashboard', { replace: true });
-      }
+      redirectByRole(res.user?.role);
+    } catch (err) {
       console.error('Login error:', err);
       // Generic error message - do not reveal whether email or password was wrong
       setError(err?.response?.data?.message || 'Invalid email or password.');
@@ -75,9 +83,73 @@ const LoginPage = () => {
     }
   };
 
+  const handleCredentialResponse = useCallback(
+    async (response) => {
+      if (!response?.credential) {
+        setError('Google authentication failed.');
+        return;
+      }
+
+      setIsSubmitting(true);
+      setError('');
+      setInfoMessage('');
+
+      try {
+        const res = await googleLogin(response.credential);
+        redirectByRole(res.user?.role);
+      } catch (err) {
+        console.error('Google login error:', err);
+        setError(err?.response?.data?.message || 'Google authentication failed.');
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [googleLogin, location.state?.from]
+  );
+
+  const credentialCallbackRef = useRef(handleCredentialResponse);
+  useEffect(() => {
+    credentialCallbackRef.current = handleCredentialResponse;
+  }, [handleCredentialResponse]);
+
+  // Load Google Identity Services and initialize
+  useEffect(() => {
+    const initGsi = () => {
+      if (!window.google?.accounts?.id) return;
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: (response) => credentialCallbackRef.current(response),
+      });
+    };
+
+    if (window.google?.accounts?.id) {
+      initGsi();
+      return undefined;
+    }
+
+    const script = document.createElement('script');
+    script.src = GSI_SCRIPT_URL;
+    script.async = true;
+    script.defer = true;
+    script.id = 'gsi-client-script';
+    script.onload = initGsi;
+    document.head.appendChild(script);
+
+    return () => {
+      const el = document.getElementById('gsi-client-script');
+      if (el) el.remove();
+    };
+  }, []);
+
   const handleGoogleLogin = () => {
     setError('');
-    setInfoMessage('Google sign-in will be available soon.');
+    setInfoMessage('');
+    if (!window.google?.accounts?.id) {
+      setError('Google sign-in could not be loaded. Please try again.');
+      return;
+    }
+    window.google.accounts.id.prompt();
   };
 
   return (
@@ -156,7 +228,7 @@ const LoginPage = () => {
           <span>OR</span>
         </div>
 
-        {/* Google Sign-In Button (UI only, type="button") */}
+        {/* Google Sign-In Button */}
         <button
           type="button"
           onClick={handleGoogleLogin}
