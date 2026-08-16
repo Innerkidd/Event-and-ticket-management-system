@@ -68,7 +68,7 @@ const DiscoverPage = () => {
         ) : error ? (
           <ErrorState message={error} onRetry={fetchEvents} />
         ) : events.length === 0 ? (
-          <EmptyState message="No events right now — check back soon!" />
+          <EmptyState message="No upcoming events available." />
         ) : (
           <div className="events-grid">
             {events.map((evt) => (

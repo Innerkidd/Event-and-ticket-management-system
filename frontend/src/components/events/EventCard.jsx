@@ -9,19 +9,19 @@ const EventCard = ({ event }) => {
   const navigate = useNavigate();
 
   const {
-    id = '1',
+    id = 0,
     name = 'Live Concert Event',
-    category = 'Concert',
-    artistOrHost = 'Featured Artist',
-    date = new Date().toISOString(),
+    description = '',
+    category = '',
+    start_date = new Date().toISOString(),
     venue = 'Main Stage Arena',
-    ticketPrice = 0,
-    ticketsAvailable = 0,
-    coverImage = null,
+    ticket_price = 0,
+    available_tickets = 0,
+    image = null,
   } = event || {};
 
-  const isSoldOut = ticketsAvailable <= 0;
-  const imageSrc = coverImage || DEFAULT_COVER_IMAGE;
+  const isSoldOut = Number(available_tickets) <= 0;
+  const imageSrc = image || DEFAULT_COVER_IMAGE;
 
   const handleCardClick = () => {
     navigate(`/events/${id}`);
@@ -40,23 +40,27 @@ const EventCard = ({ event }) => {
           }}
         />
         {/* Category Tag (Concert / Party) */}
-        <span className={`category-badge ${category === 'Party' ? 'badge-party' : 'badge-concert'}`}>
-          {category}
-        </span>
+        {category && (
+          <span className={`category-badge ${category === 'Party' ? 'badge-party' : 'badge-concert'}`}>
+            {category}
+          </span>
+        )}
 
         {/* Availability Badge */}
         <span className={`availability-badge ${isSoldOut ? 'badge-sold-out' : 'badge-available'}`}>
-          {isSoldOut ? 'Sold Out' : `${ticketsAvailable} tickets left`}
+          {isSoldOut ? 'Sold Out' : `${available_tickets} tickets left`}
         </span>
       </div>
 
       {/* Card Content Body */}
       <div className="card-body">
-        {/* Artist / DJ / Host Name (Prominent for concert/party niche) */}
-        <div className="artist-info">
-          <Mic2 size={15} color="#818cf8" />
-          <span className="artist-name">{artistOrHost}</span>
-        </div>
+        {/* Event Description */}
+        {description && (
+          <div className="artist-info">
+            <Mic2 size={15} color="#818cf8" />
+            <span className="artist-name">{description}</span>
+          </div>
+        )}
 
         {/* Event Title */}
         <h3 className="event-title">{name}</h3>
@@ -64,7 +68,7 @@ const EventCard = ({ event }) => {
         {/* Date and Time */}
         <div className="event-meta-row">
           <Calendar size={15} color="#818cf8" />
-          <span className="meta-text">{formatEventDateTime(date)}</span>
+          <span className="meta-text">{formatEventDateTime(start_date)}</span>
         </div>
 
         {/* Venue / Location */}
@@ -78,7 +82,7 @@ const EventCard = ({ event }) => {
           <div className="price-block">
             <span className="price-label">Tickets from</span>
             <span className="price-value">
-              {ticketPrice === 0 ? 'Free' : `₹${ticketPrice}`}
+              {Number(ticket_price) === 0 ? 'Free' : `₹${Number(ticket_price)}`}
             </span>
           </div>
 
