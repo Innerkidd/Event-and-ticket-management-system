@@ -259,7 +259,7 @@ body {
 }
 
 /* ============================================================
-   ADMIN APPLICATION SHELL STYLES
+   ADMIN & ORGANIZER APPLICATION SHELL STYLES
    ============================================================ */
 
 .admin-shell {
@@ -313,6 +313,15 @@ body {
   font-weight: 700;
 }
 
+.brand-organizer-tag {
+  font-size: 0.65rem;
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
 .sidebar-close-btn {
   display: none;
   background: transparent;
@@ -359,6 +368,13 @@ body {
   color: #ffffff;
   border: 1px solid rgba(99, 102, 241, 0.4);
   box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+}
+
+.sidebar-link.active-organizer {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.22) 0%, rgba(236, 72, 153, 0.22) 100%);
+  color: #ffffff;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
 }
 
 .sidebar-footer {
@@ -486,6 +502,15 @@ body {
   font-size: 0.65rem;
   background: rgba(244, 63, 94, 0.2);
   color: #fb7185;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+.badge-organizer-tag {
+  font-size: 0.65rem;
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
   padding: 0.1rem 0.4rem;
   border-radius: 4px;
   font-weight: 700;
