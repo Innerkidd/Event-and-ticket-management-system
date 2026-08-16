@@ -259,6 +259,113 @@ body {
 }
 
 /* ============================================================
+   EVENT DETAILS & BOOKING PAGE STYLES
+   ============================================================ */
+
+.event-details-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-glass);
+  backdrop-filter: blur(16px);
+  margin-bottom: 3rem;
+}
+
+.event-details-cover-container {
+  position: relative;
+  width: 100%;
+  height: 380px;
+  background: #0f172a;
+  overflow: hidden;
+}
+
+.event-details-cover-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.event-details-body {
+  padding: 2.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.event-details-title {
+  font-size: 2.25rem;
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
+.event-details-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.25rem;
+}
+
+.meta-card {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-color);
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius-md);
+}
+
+.meta-card-label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.meta-card-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.event-details-description-box {
+  background: rgba(11, 15, 25, 0.4);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+}
+
+.event-details-description-box h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 0.65rem;
+  color: var(--text-primary);
+}
+
+.event-details-description-box p {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.65;
+}
+
+.event-details-booking-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--border-color);
+  padding-top: 1.5rem;
+  margin-top: 0.5rem;
+}
+
+.booking-price-info {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============================================================
    ADMIN & ORGANIZER APPLICATION SHELL STYLES
    ============================================================ */
 
@@ -716,6 +823,7 @@ body {
   margin-bottom: 1.5rem;
   border-bottom: 1px solid var(--border-color);
   padding-bottom: 0.5rem;
+  overflow-x: auto;
 }
 
 .tab-btn {
@@ -731,6 +839,7 @@ body {
   cursor: pointer;
   border-radius: var(--radius-md);
   transition: var(--transition);
+  white-space: nowrap;
 }
 
 .tab-btn:hover {

@@ -1,8 +1,13 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import PublicLayout from '../components/common/PublicLayout';
 import DiscoverPage from '../pages/DiscoverPage';
+import EventDetailsPage from '../pages/EventDetailsPage';
+import BookingPage from '../pages/BookingPage';
 import LoginPage from '../pages/LoginPage';
 import RegisterPage from '../pages/RegisterPage';
+import AccountPage from '../pages/AccountPage';
+import OrganizerApplicationPage from '../pages/OrganizerApplicationPage';
 import ProtectedRoute from './ProtectedRoute';
 
 // Admin Shell & Views
@@ -26,22 +31,25 @@ import OrganizerStaff from '../pages/organizer/OrganizerStaff';
 import OrganizerAttendance from '../pages/organizer/OrganizerAttendance';
 import OrganizerAnalytics from '../pages/organizer/OrganizerAnalytics';
 
-// Attendee View Placeholder
-const AttendeeDashboard = () => (
-  <div style={{ padding: '3rem 1.5rem', maxWidth: '1000px', margin: '0 auto', color: '#f8fafc' }}>
-    <h1 style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>Attendee Dashboard</h1>
-    <p style={{ color: '#94a3b8' }}>My booked concert passes and digital ticket wallet.</p>
-  </div>
-);
-
 const AppRoutes = () => {
   return (
     <Routes>
-      {/* Public Routes */}
-      <Route path="/" element={<DiscoverPage />} />
-      <Route path="/events" element={<DiscoverPage />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
+      {/* Public & Attendee Shell Layout (Single Header + Footer) */}
+      <Route element={<PublicLayout />}>
+        <Route path="/" element={<DiscoverPage />} />
+        <Route path="/events" element={<DiscoverPage />} />
+        <Route path="/events/:id" element={<EventDetailsPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+
+        {/* Authenticated Booking & Account Routes */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/events/:id/book" element={<BookingPage />} />
+          <Route path="/account" element={<AccountPage />} />
+          <Route path="/account/organizer-application" element={<OrganizerApplicationPage />} />
+          <Route path="/attendee/dashboard" element={<Navigate to="/account" replace />} />
+        </Route>
+      </Route>
 
       {/* Protected Admin Shell Routes */}
       <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
@@ -70,11 +78,6 @@ const AppRoutes = () => {
           <Route path="/organizer/attendance" element={<OrganizerAttendance />} />
           <Route path="/organizer/analytics" element={<OrganizerAnalytics />} />
         </Route>
-      </Route>
-
-      {/* Protected Attendee Routes */}
-      <Route element={<ProtectedRoute allowedRoles={['ATTENDEE']} />}>
-        <Route path="/attendee/dashboard" element={<AttendeeDashboard />} />
       </Route>
 
       {/* Catch-all Fallback */}

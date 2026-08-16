@@ -21,30 +21,32 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // If already logged in, redirect based on role
+  const getTargetDestination = useCallback((userRole) => {
+    const fromState = location.state?.from;
+    const targetPath = typeof fromState === 'string' ? fromState : fromState?.pathname;
+    if (targetPath) {
+      return targetPath;
+    }
+    if (userRole === 'ADMIN') {
+      return '/admin/dashboard';
+    }
+    if (userRole === 'ORGANIZER') {
+      return '/organizer/dashboard';
+    }
+    return '/account';
+  }, [location.state?.from]);
+
+  // If already logged in, redirect based on return destination or role
   useEffect(() => {
     if (isAuthenticated && user) {
-      if (user.role === 'ADMIN') {
-        navigate('/admin/dashboard', { replace: true });
-      } else if (user.role === 'ORGANIZER') {
-        navigate('/organizer/dashboard', { replace: true });
-      } else {
-        navigate('/attendee/dashboard', { replace: true });
-      }
+      const dest = getTargetDestination(user.role);
+      navigate(dest, { replace: true });
     }
-  }, [isAuthenticated, user, navigate]);
+  }, [isAuthenticated, user, navigate, getTargetDestination]);
 
-  const redirectByRole = (role, fallbackPath) => {
-    const from = location.state?.from?.pathname;
-    if (from) {
-      navigate(from, { replace: true });
-    } else if (role === 'ADMIN') {
-      navigate('/admin/dashboard', { replace: true });
-    } else if (role === 'ORGANIZER') {
-      navigate('/organizer/dashboard', { replace: true });
-    } else {
-      navigate(fallbackPath || '/attendee/dashboard', { replace: true });
-    }
+  const redirectUser = (role) => {
+    const dest = getTargetDestination(role);
+    navigate(dest, { replace: true });
   };
 
   const handleSubmit = async (e) => {
@@ -52,7 +54,6 @@ const LoginPage = () => {
     setError('');
     setInfoMessage('');
 
-    // Client-side validation
     if (!email.trim()) {
       setError('Please enter your email address.');
       return;
@@ -73,10 +74,9 @@ const LoginPage = () => {
 
     try {
       const res = await login({ email: email.trim(), password });
-      redirectByRole(res.user?.role);
+      redirectUser(res.user?.role);
     } catch (err) {
       console.error('Login error:', err);
-      // Generic error message - do not reveal whether email or password was wrong
       setError(err?.response?.data?.message || 'Invalid email or password.');
     } finally {
       setIsSubmitting(false);
@@ -96,7 +96,7 @@ const LoginPage = () => {
 
       try {
         const res = await googleLogin(response.credential);
-        redirectByRole(res.user?.role);
+        redirectUser(res.user?.role);
       } catch (err) {
         console.error('Google login error:', err);
         setError(err?.response?.data?.message || 'Google authentication failed.');

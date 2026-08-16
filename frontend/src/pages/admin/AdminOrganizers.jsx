@@ -137,7 +137,7 @@ const AdminOrganizers = () => {
               <Skeleton height="50px" />
             </div>
           ) : error ? (
-            <ErrorState message={error} onRetry={loadData} />
+            <ErrorState title="Unable to Load Organizers" message={error} onRetry={loadData} />
           ) : pendingApps.length === 0 ? (
             <EmptyState message="No pending organizer applications." />
           ) : (
@@ -190,7 +190,7 @@ const AdminOrganizers = () => {
               <Skeleton height="50px" />
             </div>
           ) : error ? (
-            <ErrorState message={error} onRetry={loadData} />
+            <ErrorState title="Unable to Load Organizers" message={error} onRetry={loadData} />
           ) : activeOrganizers.length === 0 ? (
             <EmptyState message="No active organizers found." />
           ) : (
