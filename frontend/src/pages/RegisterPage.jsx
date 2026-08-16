@@ -63,7 +63,7 @@ const RegisterPage = () => {
     try {
       // Registration is strictly Attendee-only (no role param passed from UI)
       await register({ name: name.trim(), email: email.trim(), password });
-      navigate('/', { replace: true });
+      navigate('/login', { replace: true });
     } catch (err) {
       console.error('Registration error:', err);
       setError(err?.response?.data?.message || err?.message || 'Could not create account. Please try again.');

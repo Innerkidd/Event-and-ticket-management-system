@@ -22,7 +22,7 @@ const LoginPage = () => {
       } else if (user.role === 'ORGANIZER') {
         navigate('/organizer/dashboard', { replace: true });
       } else {
-        navigate('/', { replace: true });
+        navigate('/attendee/dashboard', { replace: true });
       }
     }
   }, [isAuthenticated, user, navigate]);
@@ -63,9 +63,8 @@ const LoginPage = () => {
       } else if (loggedInUser?.role === 'ORGANIZER') {
         navigate('/organizer/dashboard', { replace: true });
       } else {
-        navigate('/', { replace: true });
+        navigate('/attendee/dashboard', { replace: true });
       }
-    } catch (err) {
       console.error('Login error:', err);
       // Generic error message - do not reveal whether email or password was wrong
       setError(err?.response?.data?.message || 'Invalid email or password.');

@@ -21,27 +21,23 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const initAuth = async () => {
-      if (token) {
-        try {
-          const userData = await authService.getCurrentUser();
-          setUser(userData);
-          localStorage.setItem('user', JSON.stringify(userData));
-        } catch (error) {
-          console.warn('Session verification failed, resetting auth state.', error);
-          // Keep existing local user if offline
-        }
+      const savedToken = localStorage.getItem('token');
+      const savedUser = localStorage.getItem('user');
+      if (savedToken && savedUser) {
+        setToken(savedToken);
+        setUser(JSON.parse(savedUser));
       }
       setLoading(false);
     };
 
     initAuth();
-  }, [token]);
+  }, []);
 
   const login = async (credentials) => {
     setLoading(true);
     try {
       const data = await authService.login(credentials);
-      if (!data.token || !data.user) {
+      if (!data?.token || !data?.user) {
         throw new Error('Invalid authentication response from server.');
       }
       setToken(data.token);
@@ -55,20 +51,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   const register = async (userData) => {
-    setLoading(true);
-    try {
-      const data = await authService.register(userData);
-      if (!data.token || !data.user) {
-        throw new Error('Invalid registration response from server.');
-      }
-      setToken(data.token);
-      setUser(data.user);
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      return data;
-    } finally {
-      setLoading(false);
+    const data = await authService.register(userData);
+    if (!data?.user) {
+      throw new Error('Invalid registration response from server.');
     }
+    return data;
   };
 
   const logout = () => {
