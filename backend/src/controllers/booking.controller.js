@@ -1,5 +1,6 @@
 const bookingService = require('../services/booking.service');
 const attendeeBookingService = require('../services/attendeeBooking.service');
+const attendeePaymentService = require('../services/attendeePayment.service');
 
 async function listBookings(req, res) {
   try {
@@ -65,9 +66,52 @@ async function listMyBookings(req, res) {
   }
 }
 
+async function createTicketPaymentOrder(req, res) {
+  try {
+    const data = await attendeePaymentService.createTicketPaymentOrder(
+      req.user.id,
+      req.params.bookingId
+    );
+    return res.status(201).json({ success: true, data });
+  } catch (error) {
+    if (error instanceof attendeePaymentService.PaymentError) {
+      return res
+        .status(error.statusCode)
+        .json({ success: false, message: error.message });
+    }
+    console.error('Create ticket payment order failed:', error.message);
+    return res
+      .status(500)
+      .json({ success: false, message: 'Internal server error' });
+  }
+}
+
+async function verifyTicketPayment(req, res) {
+  try {
+    const data = await attendeePaymentService.verifyTicketPayment(
+      req.user.id,
+      req.params.bookingId,
+      req.body
+    );
+    return res.status(200).json({ success: true, data });
+  } catch (error) {
+    if (error instanceof attendeePaymentService.PaymentError) {
+      return res
+        .status(error.statusCode)
+        .json({ success: false, message: error.message });
+    }
+    console.error('Verify ticket payment failed:', error.message);
+    return res
+      .status(500)
+      .json({ success: false, message: 'Internal server error' });
+  }
+}
+
 module.exports = {
   listBookings,
   getBookingById,
   createBooking,
   listMyBookings,
+  createTicketPaymentOrder,
+  verifyTicketPayment,
 };

@@ -33,6 +33,13 @@ const BookingPage = () => {
   const [paymentNotice, setPaymentNotice] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Payment state machine: IDLE | LOADING | RAZORPAY_OPEN | VERIFYING | SUCCESS | FAILED | CANCELLED
+  const [paymentState, setPaymentState] = useState('IDLE');
+  const [createdBooking, setCreatedBooking] = useState(null);
+  const [confirmedBooking, setConfirmedBooking] = useState(null);
+
+  const PAYMENT_BUSY_STATES = ['LOADING', 'RAZORPAY_OPEN', 'VERIFYING'];
+
   const loadEventData = async () => {
     setLoading(true);
     setError(null);
@@ -113,25 +120,121 @@ const BookingPage = () => {
     }
 
     setIsSubmitting(true);
+    setFormError('');
+    setPaymentNotice('');
 
     try {
-      const booking = await bookingService.createBooking({
-        eventId: event.id,
-        quantity,
-      });
+      let booking = createdBooking;
+      if (!booking) {
+        setPaymentState('LOADING');
+        booking = await bookingService.createBooking({
+          eventId: event.id,
+          quantity,
+        });
+        setCreatedBooking(booking);
+      }
 
-      setPaymentNotice(
-        `Booking ${booking.bookingId} created successfully for ₹${Number(booking.amount).toLocaleString()}. Status: ${booking.status}. Payment processing will be available soon.`
-      );
+      await startPayment(booking);
     } catch (err) {
-      console.error('Booking submission error:', err);
+      console.error('Booking creation error:', err);
+      setPaymentState('FAILED');
       setFormError(err.response?.data?.message || 'Unable to process booking. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const isPayDisabled = isSubmitting || !agreedTerms || !phone.trim() || isSoldOut;
+  const startPayment = async (booking) => {
+    setFormError('');
+    setPaymentNotice('');
+    setPaymentState('LOADING');
+
+    try {
+      const order = await bookingService.createTicketPaymentOrder(booking.bookingId);
+      setPaymentState('RAZORPAY_OPEN');
+
+      await bookingService.openRazorpayCheckout(
+        {
+          key: order.keyId,
+          orderId: order.orderId,
+          amount: order.amount,
+          currency: order.currency,
+        },
+        {
+          name: fullName.trim(),
+          email: email.trim(),
+          contact: phone.trim(),
+          onSuccess: async (response) => {
+            setPaymentState('VERIFYING');
+
+            try {
+              const result = await bookingService.verifyTicketPayment(booking.bookingId, {
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              });
+
+              const isConfirmed = result?.booking?.status === 'CONFIRMED';
+              if (isConfirmed) {
+                setConfirmedBooking(result.booking);
+                setPaymentState('SUCCESS');
+                setPaymentNotice('Payment successful. Your booking is confirmed.');
+              } else {
+                setPaymentState('FAILED');
+                setPaymentNotice('Payment verification failed. Your booking is still pending.');
+              }
+            } catch (verifyErr) {
+              console.error('Payment verification error:', verifyErr);
+              const status = verifyErr.response?.status;
+              const message = verifyErr.response?.data?.message || '';
+
+              if (status === 409 || (status === 400 && /already|verified/i.test(message))) {
+                setConfirmedBooking({
+                  bookingId: booking.bookingId,
+                  status: 'CONFIRMED',
+                  quantity: booking.quantity,
+                  amount: booking.amount,
+                });
+                setPaymentState('SUCCESS');
+                setPaymentNotice('Payment has already been completed for this booking.');
+              } else {
+                setPaymentState('FAILED');
+                setPaymentNotice(message || 'Payment verification failed. Your booking is still pending.');
+              }
+            }
+          },
+          onCancel: () => {
+            setPaymentState('CANCELLED');
+            setPaymentNotice('Payment cancelled. Your booking is still pending.');
+          },
+        }
+      );
+    } catch (err) {
+      console.error('Payment order creation error:', err);
+      const status = err.response?.status;
+      const message = err.response?.data?.message || '';
+
+      if (status === 409) {
+        setConfirmedBooking({
+          bookingId: booking.bookingId,
+          status: 'CONFIRMED',
+          quantity: booking.quantity,
+          amount: booking.amount,
+        });
+        setPaymentState('SUCCESS');
+        setPaymentNotice('Payment has already been completed for this booking.');
+      } else if (status === 401 || status === 403) {
+        setPaymentState('FAILED');
+        setPaymentNotice(message || 'You are not authorized to pay for this booking.');
+      } else {
+        setPaymentState('FAILED');
+        setPaymentNotice(message || 'Unable to start payment. Please try again.');
+      }
+    }
+  };
+
+  const isPayDisabled =
+    isSubmitting || PAYMENT_BUSY_STATES.includes(paymentState) || !agreedTerms || !phone.trim() || isSoldOut;
 
   return (
     <div className="discover-page-container" style={{ maxWidth: '1000px', paddingTop: '2rem' }}>
@@ -172,13 +275,57 @@ const BookingPage = () => {
             )}
 
             {paymentNotice && (
-              <div className="auth-info-banner" role="status">
-                <Info size={18} />
+              <div
+                className={paymentState === 'FAILED' || paymentState === 'CANCELLED' ? 'auth-error-banner' : 'auth-info-banner'}
+                role={paymentState === 'FAILED' || paymentState === 'CANCELLED' ? 'alert' : 'status'}
+              >
+                {paymentState === 'FAILED' || paymentState === 'CANCELLED' ? <AlertCircle size={18} /> : <Info size={18} />}
                 <span>{paymentNotice}</span>
               </div>
             )}
 
-            <form onSubmit={handleSubmitBooking} noValidate className="auth-form">
+            {paymentState === 'SUCCESS' ? (
+              <div style={{ textAlign: 'center', padding: '2.5rem 1rem' }}>
+                <CheckCircle size={56} color="#34d399" style={{ marginBottom: '1rem' }} />
+                <h3 style={{ fontSize: '1.35rem', fontWeight: 800, marginBottom: '0.5rem', color: '#34d399' }}>
+                  Payment Successful
+                </h3>
+                <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
+                  Your ticket booking is confirmed.
+                </p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', maxWidth: '360px', margin: '0 auto 1.5rem', padding: '1rem', borderRadius: 'var(--radius-md)', background: 'rgba(11, 15, 25, 0.7)', border: '1px solid var(--border-color)', fontSize: '0.9rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Booking ID</span>
+                    <span style={{ fontWeight: 700 }}>#{confirmedBooking?.bookingId || createdBooking?.bookingId}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Status</span>
+                    <span style={{ fontWeight: 700, color: '#34d399' }}>{confirmedBooking?.status || 'CONFIRMED'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Tickets</span>
+                    <span style={{ fontWeight: 700 }}>{confirmedBooking?.quantity || quantity} Pass(es)</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Total Paid</span>
+                    <span style={{ fontWeight: 700, color: '#34d399' }}>
+                      ₹{Number(confirmedBooking?.amount ?? createdBooking?.amount ?? totalAmount).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                  <button type="button" className="btn btn-primary" onClick={() => navigate('/account?tab=tickets')}>
+                    <Ticket size={16} /> View My Tickets
+                  </button>
+                  <button type="button" className="btn btn-secondary" onClick={() => navigate(`/events/${event.id}`)}>
+                    Back to Event
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmitBooking} noValidate className="auth-form">
               {/* Full Name */}
               <div className="form-group">
                 <label className="form-label" htmlFor="fullName">Full Name *</label>
@@ -285,9 +432,17 @@ const BookingPage = () => {
                 className="btn btn-primary"
                 style={{ width: '100%', padding: '0.85rem', fontSize: '1rem', marginTop: '1rem' }}
               >
-                <ShieldCheck size={18} /> Pay Now (₹{totalAmount.toLocaleString()})
+                <ShieldCheck size={18} />
+                {paymentState === 'VERIFYING'
+                  ? 'Verifying Payment...'
+                  : paymentState === 'RAZORPAY_OPEN'
+                    ? 'Processing...'
+                    : isSubmitting || paymentState === 'LOADING'
+                      ? 'Creating Booking...'
+                      : `Pay Now (₹${totalAmount.toLocaleString()})`}
               </button>
             </form>
+            )}
           </div>
 
           {/* Column 2: Booking Summary Card */}
