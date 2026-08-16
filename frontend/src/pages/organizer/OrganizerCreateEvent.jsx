@@ -11,6 +11,8 @@ const OrganizerCreateEvent = () => {
   const [description, setDescription] = useState('');
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [endTime, setEndTime] = useState('');
   const [venue, setVenue] = useState('');
   const [ticketPrice, setTicketPrice] = useState('');
   const [totalTickets, setTotalTickets] = useState('');
@@ -58,6 +60,14 @@ const OrganizerCreateEvent = () => {
       setError('Please select an event start time.');
       return;
     }
+    if (!endDate) {
+      setError('Please select an event end date.');
+      return;
+    }
+    if (!endTime) {
+      setError('Please select an event end time.');
+      return;
+    }
     if (!venue.trim()) {
       setError('Please enter the venue location.');
       return;
@@ -73,16 +83,30 @@ const OrganizerCreateEvent = () => {
       return;
     }
 
+    // Build ISO date-time values from the raw HTML input values (YYYY-MM-DD / HH:mm).
+    const startDateTime = `${date}T${time}`;
+    const endDateTime = `${endDate}T${endTime}`;
+    const startMs = new Date(startDateTime).getTime();
+    const endMs = new Date(endDateTime).getTime();
+
+    if (Number.isNaN(startMs) || Number.isNaN(endMs)) {
+      setError('Please provide valid event date and time values.');
+      return;
+    }
+    if (endMs <= startMs) {
+      setError('End date and time must be after the start date and time.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      const endDate = `${date} ${time}:00`;
       const payload = {
         name: name.trim(),
         description: description.trim(),
         image: imagePreview || null,
-        startDate: endDate,
-        endDate,
+        startDate: startDateTime,
+        endDate: endDateTime,
         venue: venue.trim(),
         ticketPrice: priceNum,
         totalTickets: quantityNum,
@@ -177,6 +201,32 @@ const OrganizerCreateEvent = () => {
                     className="form-input"
                     value={time}
                     onChange={(e) => setTime(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="endDate">End Date *</label>
+                  <input
+                    type="date"
+                    id="endDate"
+                    className="form-input"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="endTime">End Time *</label>
+                  <input
+                    type="time"
+                    id="endTime"
+                    className="form-input"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
                     required
                   />
                 </div>

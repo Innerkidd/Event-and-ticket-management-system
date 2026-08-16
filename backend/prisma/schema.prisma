@@ -47,7 +47,7 @@ model events {
   start_date    DateTime   @db.Timestamp(6)
   end_date      DateTime?  @db.Timestamp(6)
   venue         String?    @db.VarChar(255)
-  image         String?    @db.VarChar(500)
+image         String?  @db.Text
   ticket_price  Decimal    @default(0) @db.Decimal(10, 2)
   total_tickets Int        @default(0)
   status        String     @default("DRAFT") @db.VarChar(20)

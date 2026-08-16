@@ -212,12 +212,18 @@ async function createEvent(organizerId, body = {}) {
   if (!name || typeof name !== 'string' || !name.trim()) {
     throw new OrganizerError(400, 'Event name is required');
   }
+  if (name.trim().length > 255) {
+    throw new OrganizerError(400, 'Event name must be 255 characters or less');
+  }
   const start = validateDate(startDate, 'startDate');
   if (!start) throw new OrganizerError(400, 'startDate is required');
   const end = validateDate(endDate, 'endDate') || start;
   if (end <= start) throw new OrganizerError(400, 'endDate must be after startDate');
   if (!venue || typeof venue !== 'string' || !venue.trim()) {
     throw new OrganizerError(400, 'venue is required');
+  }
+  if (venue.trim().length > 255) {
+    throw new OrganizerError(400, 'Venue must be 255 characters or less');
   }
   const price = Number(ticketPrice);
   if (!Number.isFinite(price) || price <= 0) {
@@ -254,12 +260,14 @@ async function updateEvent(organizerId, eventId, body = {}) {
 
   if (name !== undefined) {
     if (typeof name !== 'string' || !name.trim()) throw new OrganizerError(400, 'Event name is required');
+    if (name.trim().length > 255) throw new OrganizerError(400, 'Event name must be 255 characters or less');
     data.name = name.trim();
   }
   if (description !== undefined) data.description = description || null;
   if (image !== undefined) data.image = image || null;
   if (venue !== undefined) {
     if (typeof venue !== 'string' || !venue.trim()) throw new OrganizerError(400, 'venue is required');
+    if (venue.trim().length > 255) throw new OrganizerError(400, 'Venue must be 255 characters or less');
     data.venue = venue.trim();
   }
 
@@ -761,6 +769,9 @@ async function removeStaff(organizerId, staffId) {
 // ------------------------------------------------------------- Attendance
 
 async function getAttendanceOverview(organizerId, eventId) {
+  if (eventId === undefined || eventId === null || eventId === '') {
+    throw new OrganizerError(400, 'eventId query parameter is required');
+  }
   const event = await prisma.events.findFirst({
     where: { id: Number(eventId) },
   });
