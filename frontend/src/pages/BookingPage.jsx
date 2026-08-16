@@ -115,25 +115,17 @@ const BookingPage = () => {
     setIsSubmitting(true);
 
     try {
-      const bookingPayload = {
+      const booking = await bookingService.createBooking({
         eventId: event.id,
-        attendeeName: fullName.trim(),
-        userEmail: email.trim().toLowerCase(),
-        phone: phone.trim(),
         quantity,
-        totalAmount,
-      };
+      });
 
-      try {
-        await bookingService.createBooking(bookingPayload);
-      } catch (err) {
-        console.warn('Backend booking endpoint fallback:', err?.message);
-      }
-
-      setPaymentNotice('Payment integration coming soon. Your booking details are ready.');
+      setPaymentNotice(
+        `Booking ${booking.bookingId} created successfully for ₹${Number(booking.amount).toLocaleString()}. Status: ${booking.status}. Payment processing will be available soon.`
+      );
     } catch (err) {
       console.error('Booking submission error:', err);
-      setFormError('Unable to process booking. Please try again.');
+      setFormError(err.response?.data?.message || 'Unable to process booking. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

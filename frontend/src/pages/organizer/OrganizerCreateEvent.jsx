@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Clock, MapPin, DollarSign, Image as ImageIcon, AlertCircle, Info, Upload, Trash2 } from 'lucide-react';
+import { AlertCircle, Info, Upload, Trash2 } from 'lucide-react';
 import organizerService from '../../services/organizerService';
-
-const PLATFORM_FEE_PERCENT = 0.05; // 5% Platform Fee
 
 const OrganizerCreateEvent = () => {
   const navigate = useNavigate();
@@ -22,12 +20,6 @@ const OrganizerCreateEvent = () => {
   const [error, setError] = useState('');
   const [infoNotice, setInfoNotice] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Calculations
-  const priceNum = parseFloat(ticketPrice) || 0;
-  const quantityNum = parseInt(totalTickets, 10) || 0;
-  const maxTicketValue = priceNum * quantityNum;
-  const platformFee = maxTicketValue * PLATFORM_FEE_PERCENT;
 
   const handleImageChange = (e) => {
     const file = e.target.files?.[0];
@@ -70,6 +62,8 @@ const OrganizerCreateEvent = () => {
       setError('Please enter the venue location.');
       return;
     }
+    const priceNum = parseFloat(ticketPrice) || 0;
+    const quantityNum = parseInt(totalTickets, 10) || 0;
     if (isNaN(priceNum) || priceNum < 0) {
       setError('Ticket price must be a valid non-negative number.');
       return;
@@ -82,27 +76,26 @@ const OrganizerCreateEvent = () => {
     setIsSubmitting(true);
 
     try {
-      // Create draft/event payload
-      const eventPayload = {
+      const endDate = `${date} ${time}:00`;
+      const payload = {
         name: name.trim(),
         description: description.trim(),
-        start_date: `${date} ${time}:00`,
+        image: imagePreview || null,
+        startDate: endDate,
+        endDate,
         venue: venue.trim(),
-        ticket_price: priceNum,
-        total_tickets: quantityNum,
-        image: imagePreview || '/uploads/events/default-concert.jpg',
-        status: 'DRAFT',
+        ticketPrice: priceNum,
+        totalTickets: quantityNum,
       };
 
-      await organizerService.createEvent(eventPayload);
-      setInfoNotice('Event created! Your event will be published after the platform fee payment is successfully completed.');
+      await organizerService.createEvent(payload);
+      setInfoNotice('Event created successfully as a draft. You can publish it from My Events after paying the platform fee.');
       setTimeout(() => {
         navigate('/organizer/events');
       }, 2000);
     } catch (err) {
-      console.warn('Backend create event endpoint notice:', err?.message);
-      // Display clean UI integration notice
-      setInfoNotice('Your event layout is complete. Your event will be published after the platform fee payment is successfully completed.');
+      console.error('Failed to create event:', err);
+      setError(err.response?.data?.message || 'Unable to create event.');
     } finally {
       setIsSubmitting(false);
     }
@@ -112,7 +105,7 @@ const OrganizerCreateEvent = () => {
     <div className="admin-page-container">
       <div className="admin-section-card" style={{ padding: '2rem' }}>
         <div className="section-card-header" style={{ padding: '0 0 1.25rem 0', borderBottom: '1px solid var(--border-color)', marginBottom: '1.75rem' }}>
-          <h3>Create Concert / Party Event</h3>
+          <h3>Create New Event</h3>
         </div>
 
         {error && (
@@ -239,10 +232,10 @@ const OrganizerCreateEvent = () => {
               </div>
             </div>
 
-            {/* Column 2: Ticketing & Platform Fee Summary */}
+            {/* Column 2: Ticketing */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                2. Ticketing & Publishing
+                2. Ticketing
               </h4>
 
               <div className="form-group">
@@ -275,48 +268,9 @@ const OrganizerCreateEvent = () => {
                 />
               </div>
 
-              {/* Platform Fee Summary Card */}
-              <div style={{
-                background: 'var(--bg-glass)',
-                border: '1px solid var(--border-color)',
-                borderRadius: 'var(--radius-lg)',
-                padding: '1.35rem',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.85rem',
-                marginTop: '0.5rem'
-              }}>
-                <h5 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>Platform Fee Summary</h5>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>Ticket Unit Price</span>
-                  <span style={{ fontWeight: 600 }}>₹{priceNum.toLocaleString()}</span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>Total Ticket Quantity</span>
-                  <span style={{ fontWeight: 600 }}>{quantityNum.toLocaleString()}</span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', borderTop: '1px solid var(--border-color)', paddingTop: '0.65rem' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>Max Ticket Revenue Value</span>
-                  <span style={{ fontWeight: 700 }}>₹{maxTicketValue.toLocaleString()}</span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>Platform Fee Rate</span>
-                  <span style={{ fontWeight: 600, color: '#fbbf24' }}>5%</span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', borderTop: '1px dashed var(--border-color)', paddingTop: '0.75rem', marginTop: '0.25rem' }}>
-                  <span style={{ fontWeight: 800 }}>Organizer Platform Fee</span>
-                  <span style={{ fontWeight: 800, color: '#34d399' }}>₹{platformFee.toLocaleString()}</span>
-                </div>
-
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
-                  Your event will be published after the platform fee payment is successfully completed.
-                </p>
-              </div>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+                Your event is created as a <strong>draft</strong>. From My Events, you can pay the platform fee to publish it. The exact fee is calculated by the backend when you publish.
+              </p>
 
               {/* Submit CTA Button */}
               <button
@@ -325,7 +279,7 @@ const OrganizerCreateEvent = () => {
                 className="btn btn-primary"
                 style={{ width: '100%', padding: '0.85rem', fontSize: '1rem', marginTop: '0.5rem' }}
               >
-                Pay & Publish Event
+                {isSubmitting ? 'Creating...' : 'Create Draft Event'}
               </button>
             </div>
           </div>

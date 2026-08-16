@@ -1,4 +1,5 @@
 const bookingService = require('../services/booking.service');
+const attendeeBookingService = require('../services/attendeeBooking.service');
 
 async function listBookings(req, res) {
   try {
@@ -35,7 +36,38 @@ async function getBookingById(req, res) {
   }
 }
 
+async function createBooking(req, res) {
+  try {
+    const data = await attendeeBookingService.createBooking(req.user.id, req.body);
+    return res.status(201).json({ success: true, data });
+  } catch (error) {
+    if (error instanceof attendeeBookingService.BookingError) {
+      return res
+        .status(error.statusCode)
+        .json({ success: false, message: error.message });
+    }
+    console.error('Create booking failed:', error.message);
+    return res
+      .status(500)
+      .json({ success: false, message: 'Internal server error' });
+  }
+}
+
+async function listMyBookings(req, res) {
+  try {
+    const data = await attendeeBookingService.listMyBookings(req.user.id);
+    return res.status(200).json({ success: true, data });
+  } catch (error) {
+    console.error('List my bookings failed:', error.message);
+    return res
+      .status(500)
+      .json({ success: false, message: 'Internal server error' });
+  }
+}
+
 module.exports = {
   listBookings,
   getBookingById,
+  createBooking,
+  listMyBookings,
 };

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import applicationService from '../../services/applicationService';
 import { Upload, Trash2, RefreshCw, FileText, CheckCircle, AlertCircle, Info, ShieldCheck, Link as LinkIcon } from 'lucide-react';
 
 const ORG_TYPES = [
@@ -143,6 +144,7 @@ const OrganizerApplicationForm = ({ onSubmitSuccess }) => {
     }
 
     setIsSubmitting(true);
+    setError('');
 
     try {
       const applicationPayload = {
@@ -160,12 +162,14 @@ const OrganizerApplicationForm = ({ onSubmitSuccess }) => {
         document_name: documentFile.name,
       };
 
+      await applicationService.applyOrganizer(applicationPayload);
+
       if (onSubmitSuccess) {
         onSubmitSuccess(applicationPayload);
       }
     } catch (err) {
       console.error('Application submission error:', err);
-      setError('Failed to submit application. Please try again.');
+      setError(err.response?.data?.message || 'Failed to submit application. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

@@ -6,6 +6,7 @@ import bookingService from '../services/bookingService';
 import StatusBadge from '../components/admin/StatusBadge';
 import Skeleton from '../components/common/Skeleton';
 import EmptyState from '../components/common/EmptyState';
+import ErrorState from '../components/common/ErrorState';
 import OrganizerApplicationForm from '../components/account/OrganizerApplicationForm';
 import { formatDate } from '../utils/formatDate';
 
@@ -25,6 +26,7 @@ const AccountPage = () => {
   // Bookings / Tickets State
   const [userBookings, setUserBookings] = useState([]);
   const [loadingBookings, setLoadingBookings] = useState(true);
+  const [bookingsError, setBookingsError] = useState('');
 
   // Organizer Application State
   const [showAppForm, setShowAppForm] = useState(false);
@@ -34,11 +36,13 @@ const AccountPage = () => {
 
   const loadUserBookings = async () => {
     setLoadingBookings(true);
+    setBookingsError('');
     try {
       const data = await bookingService.getUserBookings();
       setUserBookings(data || []);
     } catch (err) {
-      console.warn('Error fetching user bookings:', err);
+      console.error('Error fetching user bookings:', err);
+      setBookingsError('Unable to load your bookings.');
     } finally {
       setLoadingBookings(false);
     }
@@ -223,6 +227,8 @@ const AccountPage = () => {
               <Skeleton height="60px" style={{ marginBottom: '0.75rem' }} />
               <Skeleton height="60px" />
             </div>
+          ) : bookingsError ? (
+            <ErrorState message={bookingsError} onRetry={loadUserBookings} />
           ) : userBookings.length === 0 ? (
             <EmptyState
               message="You haven't booked any events yet."
@@ -235,19 +241,19 @@ const AccountPage = () => {
           ) : (
             <div className="events-grid">
               {userBookings.map((b) => (
-                <div key={b.id} className="event-card" style={{ cursor: 'default' }}>
+                <div key={b.bookingId} className="event-card" style={{ cursor: 'default' }}>
                   <div className="card-body">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-primary)' }}>Pass ID: {b.id}</span>
-                      <StatusBadge status={b.status || 'CONFIRMED'} />
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-primary)' }}>Pass ID: {b.bookingId}</span>
+                      <StatusBadge status={b.status} />
                     </div>
-                    <h4 className="event-title" style={{ fontSize: '1.1rem' }}>{b.eventName || b.eventTitle}</h4>
+                    <h4 className="event-title" style={{ fontSize: '1.1rem' }}>{b.eventName}</h4>
                     <div className="event-meta-row">
                       <Calendar size={14} color="#818cf8" />
-                      <span>{formatDate(b.eventDate || b.createdAt)}</span>
+                      <span>{formatDate(b.eventDate)}</span>
                     </div>
                     <div className="card-footer" style={{ marginTop: '1rem' }}>
-                      <span style={{ fontWeight: 700, color: '#34d399' }}>{b.quantity || 1} Ticket Pass(es)</span>
+                      <span style={{ fontWeight: 700, color: '#34d399' }}>{b.quantity} Ticket Pass(es)</span>
                       <Link to={`/events/${b.eventId || ''}`} className="btn btn-secondary btn-sm">
                         View Event
                       </Link>
@@ -272,6 +278,8 @@ const AccountPage = () => {
               <Skeleton height="50px" style={{ marginBottom: '0.75rem' }} />
               <Skeleton height="50px" />
             </div>
+          ) : bookingsError ? (
+            <ErrorState message={bookingsError} onRetry={loadUserBookings} />
           ) : userBookings.length === 0 ? (
             <EmptyState
               message="No booking history found."
@@ -296,13 +304,13 @@ const AccountPage = () => {
                 </thead>
                 <tbody>
                   {userBookings.map((b) => (
-                    <tr key={b.id}>
-                      <td style={{ fontWeight: 700 }}>{b.id}</td>
-                      <td>{b.eventName || b.eventTitle}</td>
-                      <td>{formatDate(b.createdAt || b.bookingDate)}</td>
-                      <td>{b.quantity || 1} Pass(es)</td>
-                      <td style={{ fontWeight: 600, color: '#34d399' }}>₹{b.totalPrice || b.amount || 0}</td>
-                      <td><StatusBadge status={b.status || 'CONFIRMED'} /></td>
+                    <tr key={b.bookingId}>
+                      <td style={{ fontWeight: 700 }}>{b.bookingId}</td>
+                      <td>{b.eventName}</td>
+                      <td>{formatDate(b.bookingDate)}</td>
+                      <td>{b.quantity} Pass(es)</td>
+                      <td style={{ fontWeight: 600, color: '#34d399' }}>₹{Number(b.amount).toLocaleString()}</td>
+                      <td><StatusBadge status={b.status} /></td>
                     </tr>
                   ))}
                 </tbody>

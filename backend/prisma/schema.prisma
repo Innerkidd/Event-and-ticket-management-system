@@ -69,12 +69,15 @@ model organizer_applications {
   email            String   @db.VarChar(255)
   phone            String?  @db.VarChar(50)
   organization     String?  @db.VarChar(255)
+  org_type         String?  @db.VarChar(100)
   experience       String?
+  event_count      Int?
   reason           String?
   linkedin_url     String?  @db.VarChar(500)
   social_media_url String?  @db.VarChar(500)
   portfolio_url    String?  @db.VarChar(500)
   document_url     String?  @db.VarChar(500)
+  document_name    String?  @db.VarChar(255)
   status           String   @default("PENDING") @db.VarChar(20)
   admin_remarks    String?
   created_at       DateTime @default(now()) @db.Timestamptz(6)

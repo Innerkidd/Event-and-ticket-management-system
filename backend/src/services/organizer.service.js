@@ -861,6 +861,9 @@ async function checkIn(organizerId, bookingId) {
 // -------------------------------------------------------------- Analytics
 
 async function getAnalytics(organizerId, eventId) {
+  if (eventId === undefined || eventId === null || eventId === '') {
+    throw new OrganizerError(400, 'eventId query parameter is required');
+  }
   const event = await prisma.events.findFirst({ where: { id: Number(eventId) } });
   if (!event) throw new OrganizerError(404, 'Event not found');
   if (event.organizer_id !== organizerId) {
