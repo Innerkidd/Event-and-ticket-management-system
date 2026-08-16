@@ -1,11 +1,27 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { Ticket, User, LogIn, UserPlus } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Ticket, User, LogIn, UserPlus, LogOut, ShieldCheck, LayoutDashboard } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 const Header = () => {
-  // Check auth user state if saved in localStorage
-  const savedUser = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
-  const user = savedUser ? JSON.parse(savedUser) : null;
+  const { user, isAuthenticated, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  const getRoleBadgeClass = (role) => {
+    switch (role) {
+      case 'ADMIN':
+        return 'badge-admin';
+      case 'ORGANIZER':
+        return 'badge-organizer';
+      default:
+        return 'badge-attendee';
+    }
+  };
 
   return (
     <header className="site-header">
@@ -20,12 +36,39 @@ const Header = () => {
           </span>
         </Link>
 
-        {/* Navigation / User Action Header Section */}
+        {/* Header Action Section */}
         <div className="header-actions">
-          {user ? (
-            <div className="user-profile-badge">
-              <User size={16} />
-              <span className="user-name">{user.name || user.email || 'User'}</span>
+          {isAuthenticated && user ? (
+            <div className="user-nav-group">
+              {/* Role Dashboard Quick Link */}
+              {user.role === 'ADMIN' && (
+                <Link to="/admin/dashboard" className="btn btn-secondary btn-sm">
+                  <ShieldCheck size={16} /> Admin Portal
+                </Link>
+              )}
+              {user.role === 'ORGANIZER' && (
+                <Link to="/organizer/dashboard" className="btn btn-secondary btn-sm">
+                  <LayoutDashboard size={16} /> Dashboard
+                </Link>
+              )}
+
+              {/* Profile Badge */}
+              <div className="user-profile-badge">
+                <User size={16} />
+                <span className="user-name">{user.name || user.email}</span>
+                <span className={`role-badge ${getRoleBadgeClass(user.role)}`}>
+                  {user.role}
+                </span>
+              </div>
+
+              {/* Logout Button */}
+              <button
+                onClick={handleLogout}
+                className="btn btn-secondary btn-icon"
+                title="Log out"
+              >
+                <LogOut size={16} />
+              </button>
             </div>
           ) : (
             <div className="auth-buttons">
