@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Calendar } from 'lucide-react';
-import eventService from '../../services/eventService';
+import { Search } from 'lucide-react';
+import adminService from '../../services/adminService';
 import StatusBadge from '../../components/admin/StatusBadge';
 import Skeleton from '../../components/common/Skeleton';
 import EmptyState from '../../components/common/EmptyState';
 import ErrorState from '../../components/common/ErrorState';
+import Pagination from '../../components/common/Pagination';
 import { formatDate } from '../../utils/formatDate';
 
 const AdminEvents = () => {
@@ -14,13 +15,26 @@ const AdminEvents = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [organizerFilter, setOrganizerFilter] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 0 });
 
-  const loadEvents = async () => {
+  const loadEvents = async (params = {}) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await eventService.getPublishedEvents();
-      setEvents(data || []);
+      const query = { page: params.page || page, limit: 20 };
+      if (params.search !== undefined && params.search !== '') query.search = params.search;
+      if (params.status !== undefined && params.status !== 'ALL') query.status = params.status;
+      if (params.organizer !== undefined && params.organizer !== '') query.organizer = params.organizer;
+      if (params.dateFrom) query.from = params.dateFrom;
+      if (params.dateTo) query.to = params.dateTo;
+
+      const data = await adminService.getEvents(query);
+      setEvents(data?.events || []);
+      setPagination(data?.pagination || { page: 1, limit: 20, total: 0, totalPages: 0 });
     } catch (err) {
       console.error('Error fetching admin events:', err);
       setError('Unable to load events.');
@@ -30,17 +44,21 @@ const AdminEvents = () => {
   };
 
   useEffect(() => {
-    loadEvents();
-  }, []);
+    const timer = setTimeout(() => {
+      loadEvents({ search: searchTerm, status: statusFilter, organizer: organizerFilter, dateFrom, dateTo, page: 1 });
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm, statusFilter, organizerFilter, dateFrom, dateTo]);
 
-  const filteredEvents = events.filter((evt) => {
-    const title = evt.name || evt.title || '';
-    const venue = evt.venue || '';
-    const matchesSearch = title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          venue.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'ALL' || (evt.status || 'PUBLISHED') === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const handlePageChange = (nextPage) => {
+    if (nextPage < 1 || nextPage > pagination.totalPages) return;
+    setPage(nextPage);
+    loadEvents({ search: searchTerm, status: statusFilter, organizer: organizerFilter, dateFrom, dateTo, page: nextPage });
+  };
+
+  const handleRetry = () => {
+    loadEvents({ search: searchTerm, status: statusFilter, organizer: organizerFilter, dateFrom, dateTo, page });
+  };
 
   return (
     <div className="admin-page-container">
@@ -72,6 +90,34 @@ const AdminEvents = () => {
               <option value="COMPLETED">COMPLETED</option>
             </select>
           </div>
+          <div className="filter-item">
+            <label className="filter-label">Organizer</label>
+            <input
+              type="text"
+              className="form-input"
+              placeholder="Organizer name / email"
+              value={organizerFilter}
+              onChange={(e) => setOrganizerFilter(e.target.value)}
+            />
+          </div>
+          <div className="filter-item">
+            <label className="filter-label">From</label>
+            <input
+              type="date"
+              className="form-input"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+            />
+          </div>
+          <div className="filter-item">
+            <label className="filter-label">To</label>
+            <input
+              type="date"
+              className="form-input"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+            />
+          </div>
         </div>
       </div>
 
@@ -79,7 +125,7 @@ const AdminEvents = () => {
       <div className="admin-section-card">
         <div className="section-card-header">
           <h3>Platform Events Portfolio</h3>
-          <span className="results-count">Showing {filteredEvents.length} event(s)</span>
+          <span className="results-count">Showing {events.length} event(s)</span>
         </div>
 
         {loading ? (
@@ -88,8 +134,8 @@ const AdminEvents = () => {
             <Skeleton height="50px" />
           </div>
         ) : error ? (
-          <ErrorState message={error} onRetry={loadEvents} />
-        ) : filteredEvents.length === 0 ? (
+          <ErrorState message={error} onRetry={handleRetry} />
+        ) : events.length === 0 ? (
           <EmptyState message="No events found." />
         ) : (
           <div className="table-responsive">
@@ -106,28 +152,37 @@ const AdminEvents = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredEvents.map((evt) => (
+                {events.map((evt) => (
                   <tr key={evt.id}>
-                    <td style={{ fontWeight: 600 }}>{evt.name || evt.title}</td>
-                    <td>{evt.organizer || evt.artistOrHost || 'Organized Partner'}</td>
-                    <td>{formatDate(evt.start_date || evt.date)}</td>
+                    <td style={{ fontWeight: 600 }}>{evt.name}</td>
+                    <td>{evt.organizer_name || '—'}</td>
+                    <td>{formatDate(evt.start_date)}</td>
                     <td>{evt.venue}</td>
                     <td style={{ fontWeight: 600, color: '#34d399' }}>
-                      {Number(evt.ticket_price || evt.price) === 0 ? 'Free' : `₹${Number(evt.ticket_price || evt.price)}`}
+                      {Number(evt.ticket_price) === 0 ? 'Free' : `₹${Number(evt.ticket_price)}`}
                     </td>
                     <td>
                       {evt.available_tickets !== undefined
                         ? `${evt.available_tickets} / ${evt.total_tickets}`
-                        : `${evt.ticketsAvailable || 0} tickets`}
+                        : '—'}
                     </td>
                     <td>
-                      <StatusBadge status={evt.status || 'PUBLISHED'} />
+                      <StatusBadge status={evt.status} />
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+        )}
+
+        {!loading && !error && (
+          <Pagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            total={pagination.total}
+            onPageChange={handlePageChange}
+          />
         )}
       </div>
     </div>

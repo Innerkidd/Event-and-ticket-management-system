@@ -25,6 +25,18 @@ async function findUpcomingPublished() {
   return rows;
 }
 
+async function findById(id) {
+  const { rows } = await pool.query(
+    `SELECT ${EVENT_COLUMNS}
+     FROM events
+     WHERE id = $1`,
+    [id]
+  );
+
+  return rows[0] || null;
+}
+
 module.exports = {
   findUpcomingPublished,
+  findById,
 };
