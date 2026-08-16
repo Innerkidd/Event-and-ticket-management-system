@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Award, CheckCircle, XCircle, Eye, Mail, Building, Phone, Calendar, Info } from 'lucide-react';
+import { Award, CheckCircle, XCircle, Eye, Info } from 'lucide-react';
 import adminService from '../../services/adminService';
 import StatusBadge from '../../components/admin/StatusBadge';
 import DetailDrawer from '../../components/admin/DetailDrawer';
@@ -18,6 +18,7 @@ const AdminOrganizers = () => {
   // Review Drawer state
   const [selectedApp, setSelectedApp] = useState(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionFeedback, setActionFeedback] = useState('');
 
@@ -26,11 +27,11 @@ const AdminOrganizers = () => {
     setError(null);
     try {
       const [appsData, orgsData] = await Promise.all([
-        adminService.getPendingApplications(),
+        adminService.getOrganizerApplications({ status: 'PENDING', page: 1, limit: 20 }),
         adminService.getOrganizers(),
       ]);
-      setPendingApps(appsData || []);
-      setActiveOrganizers(orgsData || []);
+      setPendingApps(appsData?.applications || []);
+      setActiveOrganizers(orgsData?.organizers || []);
     } catch (err) {
       console.error('Error fetching organizers data:', err);
       setError('Unable to load organizers. Please try again.');
@@ -43,10 +44,20 @@ const AdminOrganizers = () => {
     loadData();
   }, []);
 
-  const handleOpenDrawer = (app) => {
-    setSelectedApp(app);
-    setActionFeedback('');
+  const handleOpenDrawer = async (app) => {
     setIsDrawerOpen(true);
+    setDetailLoading(true);
+    setActionFeedback('');
+    setSelectedApp(app);
+    try {
+      const detail = await adminService.getOrganizerApplication(app.id);
+      if (detail) setSelectedApp(detail);
+    } catch (err) {
+      console.error('Error fetching application detail:', err);
+      setActionFeedback('Unable to load application details.');
+    } finally {
+      setDetailLoading(false);
+    }
   };
 
   const handleCloseDrawer = () => {
@@ -68,7 +79,7 @@ const AdminOrganizers = () => {
       }, 1200);
     } catch (err) {
       console.error('Approval failed:', err);
-      setActionFeedback('Failed to approve application. Backend API connection pending.');
+      setActionFeedback(err?.response?.data?.message || 'Failed to approve application.');
     } finally {
       setActionLoading(false);
     }
@@ -87,7 +98,7 @@ const AdminOrganizers = () => {
       }, 1200);
     } catch (err) {
       console.error('Rejection failed:', err);
-      setActionFeedback('Failed to reject application. Backend API connection pending.');
+      setActionFeedback(err?.response?.data?.message || 'Failed to reject application.');
     } finally {
       setActionLoading(false);
     }
@@ -145,10 +156,10 @@ const AdminOrganizers = () => {
                 <tbody>
                   {pendingApps.map((app) => (
                     <tr key={app.id}>
-                      <td style={{ fontWeight: 600 }}>{app.name || app.applicantName}</td>
+                      <td style={{ fontWeight: 600 }}>{app.full_name}</td>
                       <td>{app.email}</td>
                       <td>{app.organization || '—'}</td>
-                      <td>{formatDate(app.createdAt || app.submittedAt)}</td>
+                      <td>{formatDate(app.created_at)}</td>
                       <td>
                         <StatusBadge status={app.status || 'PENDING'} />
                       </td>
@@ -190,7 +201,6 @@ const AdminOrganizers = () => {
                     <th>Organizer</th>
                     <th>Email</th>
                     <th>Events Count</th>
-                    <th>Status</th>
                     <th>Joined Date</th>
                   </tr>
                 </thead>
@@ -199,11 +209,8 @@ const AdminOrganizers = () => {
                     <tr key={org.id}>
                       <td style={{ fontWeight: 600 }}>{org.name}</td>
                       <td>{org.email}</td>
-                      <td>{org.eventsCount !== undefined ? org.eventsCount : '—'}</td>
-                      <td>
-                        <StatusBadge status={org.status || 'ACTIVE'} />
-                      </td>
-                      <td>{formatDate(org.createdAt || org.joinedDate)}</td>
+                      <td>{org.event_count !== undefined ? org.event_count : '—'}</td>
+                      <td>{formatDate(org.created_at)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -220,19 +227,25 @@ const AdminOrganizers = () => {
         title="Organizer Application Review"
         footer={
           <div style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'flex-end' }}>
-            <button onClick={handleReject} disabled={actionLoading} className="btn btn-danger">
+            <button onClick={handleReject} disabled={actionLoading || detailLoading} className="btn btn-danger">
               <XCircle size={16} /> Reject
             </button>
-            <button onClick={handleApprove} disabled={actionLoading} className="btn btn-primary">
+            <button onClick={handleApprove} disabled={actionLoading || detailLoading} className="btn btn-primary">
               <CheckCircle size={16} /> Approve
             </button>
           </div>
         }
       >
-        {selectedApp && (
+        {detailLoading ? (
+          <div style={{ padding: '1.5rem' }}>
+            <Skeleton height="30px" style={{ marginBottom: '0.75rem' }} />
+            <Skeleton height="30px" style={{ marginBottom: '0.75rem' }} />
+            <Skeleton height="30px" />
+          </div>
+        ) : selectedApp && (
           <div className="detail-drawer-content">
             {actionFeedback && (
-              <div className="auth-info-banner" style={{ marginBottom: '1.25rem' }}>
+              <div className={`auth-info-banner ${actionFeedback.includes('successfully') ? '' : 'banner-error'}`} style={{ marginBottom: '1.25rem' }}>
                 <Info size={18} />
                 <span>{actionFeedback}</span>
               </div>
@@ -240,7 +253,7 @@ const AdminOrganizers = () => {
 
             <div className="detail-group">
               <label>Applicant Full Name</label>
-              <p>{selectedApp.name || selectedApp.applicantName}</p>
+              <p>{selectedApp.full_name}</p>
             </div>
 
             <div className="detail-group">
@@ -265,13 +278,20 @@ const AdminOrganizers = () => {
 
             <div className="detail-group">
               <label>Reason for Applying</label>
-              <p>{selectedApp.reason || 'Wants to publish music & party events on EventHub platform.'}</p>
+              <p>{selectedApp.reason || 'Not specified'}</p>
             </div>
 
             <div className="detail-group">
               <label>Submission Date</label>
-              <p>{formatDate(selectedApp.createdAt || selectedApp.submittedAt)}</p>
+              <p>{formatDate(selectedApp.created_at)}</p>
             </div>
+
+            {selectedApp.admin_remarks && (
+              <div className="detail-group">
+                <label>Admin Remarks</label>
+                <p>{selectedApp.admin_remarks}</p>
+              </div>
+            )}
           </div>
         )}
       </DetailDrawer>

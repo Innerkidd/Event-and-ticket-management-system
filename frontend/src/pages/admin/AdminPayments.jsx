@@ -6,24 +6,45 @@ import DetailDrawer from '../../components/admin/DetailDrawer';
 import Skeleton from '../../components/common/Skeleton';
 import EmptyState from '../../components/common/EmptyState';
 import ErrorState from '../../components/common/ErrorState';
+import Pagination from '../../components/common/Pagination';
 import { formatDate } from '../../utils/formatDate';
 
 const AdminPayments = () => {
   const [activeTab, setActiveTab] = useState('organizer'); // 'organizer' | 'ticket'
+  const [organizerFees, setOrganizerFees] = useState([]);
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 0 });
+
   // Detail Drawer state
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
 
-  const loadPayments = async () => {
+  const loadOrganizerFees = async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await adminService.getPayments();
-      setPayments(data || []);
+      const data = await adminService.getOrganizerFees();
+      setOrganizerFees(data || []);
+    } catch (err) {
+      console.error('Error fetching organizer fees:', err);
+      setError('Unable to load organizer fee records.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadPayments = async (params = {}) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await adminService.getPayments({ page: params.page || page, limit: 20 });
+      setPayments(data?.payments || []);
+      setPagination(data?.pagination || { page: 1, limit: 20, total: 0, totalPages: 0 });
     } catch (err) {
       console.error('Error fetching admin payments:', err);
       setError('Unable to load payment records.');
@@ -33,15 +54,36 @@ const AdminPayments = () => {
   };
 
   useEffect(() => {
-    loadPayments();
-  }, []);
+    if (activeTab === 'organizer') {
+      loadOrganizerFees();
+    } else {
+      loadPayments({ page: 1 });
+    }
+  }, [activeTab]);
 
-  const organizerFees = payments.filter((p) => p.type === 'ORGANIZER_FEE');
-  const ticketPayments = payments.filter((p) => p.type !== 'ORGANIZER_FEE');
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setError(null);
+  };
 
-  const handleOpenDrawer = (payment) => {
-    setSelectedPayment(payment);
+  const handlePageChange = (nextPage) => {
+    if (nextPage < 1 || nextPage > pagination.totalPages) return;
+    setPage(nextPage);
+    loadPayments({ page: nextPage });
+  };
+
+  const handleOpenDrawer = async (payment) => {
     setIsDrawerOpen(true);
+    setDetailLoading(true);
+    setSelectedPayment(payment);
+    try {
+      const detail = await adminService.getPayment(payment.id);
+      if (detail) setSelectedPayment(detail);
+    } catch (err) {
+      console.error('Error fetching payment detail:', err);
+    } finally {
+      setDetailLoading(false);
+    }
   };
 
   return (
@@ -49,18 +91,18 @@ const AdminPayments = () => {
       {/* Navigation Tabs Header */}
       <div className="tab-navigation">
         <button
-          onClick={() => setActiveTab('organizer')}
+          onClick={() => handleTabChange('organizer')}
           className={`tab-btn ${activeTab === 'organizer' ? 'active' : ''}`}
         >
           <DollarSign size={16} /> Organizer Fees
           {organizerFees.length > 0 && <span className="tab-badge">{organizerFees.length}</span>}
         </button>
         <button
-          onClick={() => setActiveTab('ticket')}
+          onClick={() => handleTabChange('ticket')}
           className={`tab-btn ${activeTab === 'ticket' ? 'active' : ''}`}
         >
           <CreditCard size={16} /> Ticket Payments
-          {ticketPayments.length > 0 && <span className="tab-badge">{ticketPayments.length}</span>}
+          {payments.length > 0 && <span className="tab-badge">{payments.length}</span>}
         </button>
       </div>
 
@@ -77,7 +119,7 @@ const AdminPayments = () => {
               <Skeleton height="50px" />
             </div>
           ) : error ? (
-            <ErrorState message={error} onRetry={loadPayments} />
+            <ErrorState message={error} onRetry={loadOrganizerFees} />
           ) : organizerFees.length === 0 ? (
             <EmptyState message="No organizer fee payment records available." />
           ) : (
@@ -132,8 +174,8 @@ const AdminPayments = () => {
               <Skeleton height="50px" />
             </div>
           ) : error ? (
-            <ErrorState message={error} onRetry={loadPayments} />
-          ) : ticketPayments.length === 0 ? (
+            <ErrorState message={error} onRetry={() => loadPayments({ page })} />
+          ) : payments.length === 0 ? (
             <EmptyState message="No ticket payment records available." />
           ) : (
             <div className="table-responsive">
@@ -151,16 +193,16 @@ const AdminPayments = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {ticketPayments.map((p) => (
+                  {payments.map((p) => (
                     <tr key={p.id}>
                       <td style={{ fontWeight: 700 }}>{p.id}</td>
-                      <td>{p.bookingId}</td>
-                      <td>{p.attendeeName || p.userEmail}</td>
-                      <td>{p.eventName}</td>
-                      <td style={{ fontWeight: 600 }}>₹{p.amount}</td>
-                      <td>{p.paymentMethod || 'Online'}</td>
+                      <td>{p.booking_id}</td>
+                      <td>{p.attendee_name || p.attendee_email}</td>
+                      <td>{p.event_name}</td>
+                      <td style={{ fontWeight: 600 }}>₹{p.amount || 0}</td>
+                      <td>{p.method || 'Online'}</td>
                       <td>
-                        <StatusBadge status={p.status || 'SUCCESS'} />
+                        <StatusBadge status={p.status} />
                       </td>
                       <td>
                         <button onClick={() => handleOpenDrawer(p)} className="btn btn-secondary btn-sm">
@@ -173,6 +215,15 @@ const AdminPayments = () => {
               </table>
             </div>
           )}
+
+          {!loading && !error && (
+            <Pagination
+              page={pagination.page}
+              totalPages={pagination.totalPages}
+              total={pagination.total}
+              onPageChange={handlePageChange}
+            />
+          )}
         </div>
       )}
 
@@ -182,31 +233,45 @@ const AdminPayments = () => {
         onClose={() => setIsDrawerOpen(false)}
         title="Payment Record Inspection"
       >
-        {selectedPayment && (
+        {detailLoading ? (
+          <div style={{ padding: '1.5rem' }}>
+            <Skeleton height="30px" style={{ marginBottom: '0.75rem' }} />
+            <Skeleton height="30px" style={{ marginBottom: '0.75rem' }} />
+            <Skeleton height="30px" />
+          </div>
+        ) : selectedPayment && (
           <div className="detail-drawer-content">
             <div className="detail-group">
               <label>Payment ID</label>
               <p>{selectedPayment.id}</p>
             </div>
             <div className="detail-group">
+              <label>Booking ID</label>
+              <p>{selectedPayment.booking_id || 'N/A'}</p>
+            </div>
+            <div className="detail-group">
+              <label>Attendee</label>
+              <p>{selectedPayment.attendee_name || selectedPayment.attendee_email}</p>
+            </div>
+            <div className="detail-group">
               <label>Event Name</label>
-              <p>{selectedPayment.eventName || 'N/A'}</p>
+              <p>{selectedPayment.event_name || 'N/A'}</p>
             </div>
             <div className="detail-group">
               <label>Amount / Fee</label>
-              <p>₹{selectedPayment.amount || selectedPayment.platformFee || 0}</p>
+              <p>₹{selectedPayment.amount || 0}</p>
             </div>
             <div className="detail-group">
               <label>Payment Method</label>
-              <p>{selectedPayment.paymentMethod || 'Card / UPI'}</p>
+              <p>{selectedPayment.method || 'Card / UPI'}</p>
             </div>
             <div className="detail-group">
               <label>Payment Date</label>
-              <p>{formatDate(selectedPayment.createdAt || selectedPayment.paymentDate)}</p>
+              <p>{formatDate(selectedPayment.created_at)}</p>
             </div>
             <div className="detail-group">
               <label>Status</label>
-              <div><StatusBadge status={selectedPayment.status || 'SUCCESS'} /></div>
+              <div><StatusBadge status={selectedPayment.status} /></div>
             </div>
           </div>
         )}

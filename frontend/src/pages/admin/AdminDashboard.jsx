@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, Award, Calendar, Ticket, ArrowRight, UserCheck, PlusCircle, CheckCircle, RefreshCw } from 'lucide-react';
+import { Users, Award, Calendar, Ticket, ArrowRight, UserCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import adminService from '../../services/adminService';
-import eventService from '../../services/eventService';
 import StatCard from '../../components/admin/StatCard';
 import StatusBadge from '../../components/admin/StatusBadge';
 import Skeleton from '../../components/common/Skeleton';
@@ -23,16 +22,14 @@ const AdminDashboard = () => {
     setLoading(true);
     setError(null);
     try {
-      // Parallel fetch for stats, applications, and events
-      const [statsData, appsData, eventsData] = await Promise.all([
-        adminService.getDashboardStats(),
-        adminService.getPendingApplications(),
-        eventService.getPublishedEvents(),
+      const [dashboardData, appsData] = await Promise.all([
+        adminService.getDashboard(),
+        adminService.getOrganizerApplications({ status: 'PENDING', page: 1, limit: 5 }),
       ]);
 
-      setStats(statsData);
-      setPendingApps(appsData || []);
-      setRecentEvents(eventsData || []);
+      setStats(dashboardData?.stats || null);
+      setRecentEvents(dashboardData?.recentEvents || []);
+      setPendingApps(appsData?.applications || []);
     } catch (err) {
       console.error('Failed to load admin dashboard data:', err);
       setError('Unable to load dashboard data. Please try again.');
@@ -69,7 +66,7 @@ const AdminDashboard = () => {
         />
         <StatCard
           label="Published Events"
-          value={recentEvents ? recentEvents.length : loading ? null : '—'}
+          value={stats?.publishedEvents !== undefined ? stats.publishedEvents : loading ? null : '—'}
           icon={Calendar}
           color="#34d399"
         />
@@ -79,7 +76,15 @@ const AdminDashboard = () => {
           icon={Ticket}
           color="#f43f5e"
         />
+        <StatCard
+          label="Pending Applications"
+          value={stats?.pendingOrganizerApplications !== undefined ? stats.pendingOrganizerApplications : loading ? null : '—'}
+          icon={UserCheck}
+          color="#f59e0b"
+        />
       </div>
+
+      {error && <ErrorState message={error} onRetry={loadDashboardData} />}
 
       {/* Pending Applications & Recent Events Grid */}
       <div className="dashboard-sections-grid">
@@ -111,9 +116,9 @@ const AdminDashboard = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {pendingApps.slice(0, 5).map((app) => (
+                  {pendingApps.map((app) => (
                     <tr key={app.id}>
-                      <td style={{ fontWeight: 600 }}>{app.name || app.applicantName}</td>
+                      <td style={{ fontWeight: 600 }}>{app.full_name}</td>
                       <td>{app.email}</td>
                       <td>
                         <StatusBadge status={app.status || 'PENDING'} />
@@ -154,18 +159,16 @@ const AdminDashboard = () => {
                   <tr>
                     <th>Event</th>
                     <th>Date</th>
-                    <th>Venue</th>
-                    <th>Price</th>
+                    <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {recentEvents.slice(0, 5).map((evt) => (
                     <tr key={evt.id}>
-                      <td style={{ fontWeight: 600 }}>{evt.name || evt.title}</td>
-                      <td>{formatDate(evt.start_date || evt.date)}</td>
-                      <td>{evt.venue}</td>
-                      <td style={{ fontWeight: 600, color: '#34d399' }}>
-                        {Number(evt.ticket_price || evt.price) === 0 ? 'Free' : `₹${Number(evt.ticket_price || evt.price)}`}
+                      <td style={{ fontWeight: 600 }}>{evt.name}</td>
+                      <td>{formatDate(evt.start_date)}</td>
+                      <td>
+                        <StatusBadge status={evt.status} />
                       </td>
                     </tr>
                   ))}

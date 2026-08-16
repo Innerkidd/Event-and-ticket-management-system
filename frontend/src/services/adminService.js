@@ -1,104 +1,79 @@
-import api from '../services/api';
+import api from './api';
 
 const adminService = {
-  getDashboardStats: async () => {
-    try {
-      const response = await api.get('/admin/stats');
-      return response.data?.data || null;
-    } catch (error) {
-      console.warn('Backend /admin/stats endpoint unavailable.', error?.message);
-      return null;
-    }
-  },
-
-  getPendingApplications: async () => {
-    try {
-      const response = await api.get('/admin/organizers/applications');
-      return response.data?.data || [];
-    } catch (error) {
-      console.warn('Backend /admin/organizers/applications endpoint unavailable.', error?.message);
-      return [];
-    }
+  getDashboard: async () => {
+    const response = await api.get('/admin/dashboard');
+    return response.data?.data || null;
   },
 
   getUsers: async (params = {}) => {
-    try {
-      const response = await api.get('/admin/users', { params });
-      return response.data?.data || [];
-    } catch (error) {
-      console.warn('Backend /admin/users endpoint unavailable.', error?.message);
-      return [];
-    }
+    const response = await api.get('/admin/users', { params });
+    return response.data?.data || null;
   },
 
   getOrganizers: async (params = {}) => {
-    try {
-      const response = await api.get('/admin/organizers', { params });
-      return response.data?.data || [];
-    } catch (error) {
-      console.warn('Backend /admin/organizers endpoint unavailable.', error?.message);
-      return [];
-    }
+    const response = await api.get('/admin/organizers', { params });
+    return response.data?.data || null;
   },
 
-  approveOrganizerApplication: async (id) => {
-    try {
-      const response = await api.patch(`/admin/organizers/applications/${id}/approve`);
-      return response.data;
-    } catch (error) {
-      console.warn(`Backend /admin/organizers/applications/${id}/approve endpoint unavailable.`, error?.message);
-      throw error;
-    }
+  getOrganizerApplications: async (params = {}) => {
+    const response = await api.get('/admin/organizers/applications', { params });
+    return response.data?.data || null;
   },
 
-  rejectOrganizerApplication: async (id) => {
-    try {
-      const response = await api.patch(`/admin/organizers/applications/${id}/reject`);
-      return response.data;
-    } catch (error) {
-      console.warn(`Backend /admin/organizers/applications/${id}/reject endpoint unavailable.`, error?.message);
-      throw error;
-    }
+  getOrganizerApplication: async (id) => {
+    const response = await api.get(`/admin/organizers/applications/${id}`);
+    return response.data?.data?.application || null;
+  },
+
+  approveOrganizerApplication: async (id, data = {}) => {
+    const response = await api.patch(`/admin/organizers/applications/${id}/approve`, data);
+    return response.data;
+  },
+
+  rejectOrganizerApplication: async (id, data = {}) => {
+    const response = await api.patch(`/admin/organizers/applications/${id}/reject`, data);
+    return response.data;
   },
 
   getEvents: async (params = {}) => {
-    try {
-      const response = await api.get('/admin/events', { params });
-      return response.data?.data || [];
-    } catch (error) {
-      console.warn('Backend /admin/events endpoint unavailable.', error?.message);
-      return [];
-    }
+    const response = await api.get('/admin/events', { params });
+    return response.data?.data || null;
+  },
+
+  getEvent: async (id) => {
+    const response = await api.get(`/admin/events/${id}`);
+    return response.data?.data?.event || null;
   },
 
   getBookings: async (params = {}) => {
-    try {
-      const response = await api.get('/admin/bookings', { params });
-      return response.data?.data || [];
-    } catch (error) {
-      console.warn('Backend /admin/bookings endpoint unavailable.', error?.message);
-      return [];
-    }
+    const response = await api.get('/admin/bookings', { params });
+    return response.data?.data || null;
+  },
+
+  getBooking: async (id) => {
+    const response = await api.get(`/admin/bookings/${id}`);
+    return response.data?.data?.booking || null;
   },
 
   getPayments: async (params = {}) => {
-    try {
-      const response = await api.get('/admin/payments', { params });
-      return response.data?.data || [];
-    } catch (error) {
-      console.warn('Backend /admin/payments endpoint unavailable.', error?.message);
-      return [];
-    }
+    const response = await api.get('/admin/payments', { params });
+    return response.data?.data || null;
+  },
+
+  getPayment: async (id) => {
+    const response = await api.get(`/admin/payments/${id}`);
+    return response.data?.data?.payment || null;
+  },
+
+  getOrganizerFees: async (params = {}) => {
+    const response = await api.get('/admin/payments/organizer-fees', { params });
+    return response.data?.data || [];
   },
 
   getReports: async () => {
-    try {
-      const response = await api.get('/admin/reports');
-      return response.data?.data || null;
-    } catch (error) {
-      console.warn('Backend /admin/reports endpoint unavailable.', error?.message);
-      return null;
-    }
+    const response = await api.get('/admin/reports');
+    return response.data?.data || null;
   },
 };
 
